@@ -107,10 +107,7 @@ where
     let mut builder = CircuitBuilder::<F, D>::new(config.clone());
     let pt = builder.add_virtual_proof_with_pis::<InnerC>(inner_cd);
 
-    let inner_data = VerifierCircuitTarget {
-        constants_sigmas_cap: builder.add_virtual_cap(inner_cd.config.fri_config.cap_height),
-        circuit_digest: builder.add_virtual_hash(),
-    };
+    let inner_data = builder.add_virtual_verifier_data(inner_cd.config.fri_config.cap_height);
 
     builder.verify_proof::<InnerC>(&pt, &inner_data, inner_cd);
     builder.print_gate_counts(0);

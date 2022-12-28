@@ -163,6 +163,7 @@ pub struct CrossTableLookup<F: Field> {
     pub(crate) looking_tables: Vec<TableWithColumns<F>>,
     pub(crate) looked_table: TableWithColumns<F>,
     /// Default value if filters are not used.
+    // TODO: Remove? Ended up not using it.
     default: Option<Vec<F>>,
 }
 
@@ -582,7 +583,7 @@ pub(crate) fn verify_cross_table_lookups<
     C: GenericConfig<D, F = F>,
     const D: usize,
 >(
-    cross_table_lookups: Vec<CrossTableLookup<F>>,
+    cross_table_lookups: &[CrossTableLookup<F>],
     ctl_zs_lasts: [Vec<F>; NUM_TABLES],
     degrees_bits: [usize; NUM_TABLES],
     challenges: GrandProductChallengeSet<F>,
@@ -597,7 +598,7 @@ pub(crate) fn verify_cross_table_lookups<
             default,
             ..
         },
-    ) in cross_table_lookups.into_iter().enumerate()
+    ) in cross_table_lookups.iter().enumerate()
     {
         for _ in 0..config.num_challenges {
             let looking_degrees_sum = looking_tables
@@ -635,47 +636,23 @@ pub(crate) fn verify_cross_table_lookups_circuit<
     builder: &mut CircuitBuilder<F, D>,
     cross_table_lookups: Vec<CrossTableLookup<F>>,
     ctl_zs_lasts: [Vec<Target>; NUM_TABLES],
-    degrees_bits: [usize; NUM_TABLES],
-    challenges: GrandProductChallengeSet<Target>,
     inner_config: &StarkConfig,
 ) {
     let mut ctl_zs_openings = ctl_zs_lasts.iter().map(|v| v.iter()).collect::<Vec<_>>();
-    for (
-        i,
-        CrossTableLookup {
-            looking_tables,
-            looked_table,
-            default,
-            ..
-        },
-    ) in cross_table_lookups.into_iter().enumerate()
+    for CrossTableLookup {
+        looking_tables,
+        looked_table,
+        ..
+    } in cross_table_lookups.into_iter()
     {
         for _ in 0..inner_config.num_challenges {
-            let looking_degrees_sum = looking_tables
-                .iter()
-                .map(|table| 1 << degrees_bits[table.table as usize])
-                .sum::<u64>();
-            let looked_degree = 1 << degrees_bits[looked_table.table as usize];
             let looking_zs_prod = builder.mul_many(
                 looking_tables
                     .iter()
                     .map(|table| *ctl_zs_openings[table.table as usize].next().unwrap()),
             );
             let looked_z = *ctl_zs_openings[looked_table.table as usize].next().unwrap();
-            let challenge = challenges.challenges[i % inner_config.num_challenges];
-            if let Some(default) = default.as_ref() {
-                let default = default
-                    .iter()
-                    .map(|&x| builder.constant(x))
-                    .collect::<Vec<_>>();
-                let combined_default = challenge.combine_base_circuit(builder, &default);
-
-                let pad = builder.exp_u64(combined_default, looking_degrees_sum - looked_degree);
-                let padded_looked_z = builder.mul(looked_z, pad);
-                builder.connect(looking_zs_prod, padded_looked_z);
-            } else {
-                builder.connect(looking_zs_prod, looked_z);
-            }
+            builder.connect(looking_zs_prod, looked_z);
         }
     }
     debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));

@@ -26,7 +26,7 @@ use crate::vanishing_poly::eval_vanishing_poly;
 use crate::vars::StarkEvaluationVars;
 
 pub fn verify_proof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>(
-    all_stark: AllStark<F, D>,
+    all_stark: &AllStark<F, D>,
     all_proof: AllProof<F, C, D>,
     config: &StarkConfig,
 ) -> Result<()>
@@ -41,7 +41,7 @@ where
     let AllProofChallenges {
         stark_challenges,
         ctl_challenges,
-    } = all_proof.get_challenges(&all_stark, config);
+    } = all_proof.get_challenges(all_stark, config);
 
     let nums_permutation_zs = all_stark.nums_permutation_zs(config);
 
@@ -114,7 +114,7 @@ pub(crate) fn verify_stark_proof_with_challenges<
     S: Stark<F, D>,
     const D: usize,
 >(
-    stark: S,
+    stark: &S,
     proof: &StarkProof<F, C, D>,
     challenges: &StarkProofChallenges<F, D>,
     ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
@@ -125,7 +125,7 @@ where
     [(); C::Hasher::HASH_SIZE]:,
 {
     log::debug!("Checking proof: {}", type_name::<S>());
-    validate_proof_shape(&stark, proof, config, ctl_vars.len())?;
+    validate_proof_shape(stark, proof, config, ctl_vars.len())?;
     let StarkOpeningSet {
         local_values,
         next_values,
